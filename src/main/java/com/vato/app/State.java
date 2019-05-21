@@ -26,7 +26,7 @@ public abstract class State {
 
     /**
      * This method is called when a response for a request for vote is received.
-     * @param request The response of a previously sent vote request message.
+     * @param response The response of a previously sent vote request message.
      */
     public abstract void rcvRequestVoteResponse(RequestVoteResponse response);
 
@@ -39,7 +39,7 @@ public abstract class State {
 
     /**
      * This message is called when a leader is sent an append entries response (maybe put this in leader only?)
-     * @param request The append entries response message.
+     * @param response The append entries response message.
      */
     public abstract void rcvAppendEntriesResponse(Response response);
 }
