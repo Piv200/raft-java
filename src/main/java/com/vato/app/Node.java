@@ -2,9 +2,11 @@ package com.vato.app;
 
 import java.io.*;
 import java.security.InvalidParameterException;
+import java.util.Random;
 import java.util.Timer;
-import java.util.Vector;
+import java.util.TimerTask;
 import java.util.UUID;
+import java.util.Vector;
 
 import org.json.JSONObject;
 
@@ -71,8 +73,70 @@ public class Node {
     currentState = new Follower(this);
 
     stateChangedListeners = new Vector<OnRaftStateChangedListener>();
+    timer = new Timer();
   }
 
-  
+  public void addStateChange(OnRaftStateChangedListener changed){
+    stateChangedListeners.add(changed);
+  }
 
+  public void setState(State newState){
+    // This is where garbage collection can be a pain... I need to figure this out better.
+    currentState = newState;
+    // TODO: figure out java asynchronous calls, as this is naive.
+    for(OnRaftStateChangedListener i : stateChangedListeners){
+      i.onStateChanged();
+    }
+  }
+
+  public void timeoutElapsed(){
+    currentState.heartbeatElapsed();
+  }
+
+  public void setTimeout(){
+    if (minTimeout > 0 && varyTimeout > 0){
+      setTimeout(minTimeout, varyTimeout);
+    }else{
+      System.out.println("Could not find a loaded timeout");
+    }
+  }
+
+  public void setTimeout(int minTimeout, int varyTimeout){
+    timer.cancel();
+    Random randy = new Random();
+    int randNum = randy.nextInt(varyTimeout) + minTimeout;
+    timer.schedule(new TimerTask() {
+      @Override
+      public void run() {
+        timeoutElapsed();
+      }
+    }, randNum);
+  }
+
+  public void sendRequestVote(){
+    messageStrategy.sendRequestVote(new RequestVote(currentTerm, id.toString()));
+  }
+
+  public RequestVoteResponse voteRequested(RequestVote voteRequest){
+    return currentState.rcvRequestVote(voteRequest);
+  }
+
+  public void voteReceived(RequestVoteResponse response){
+    currentState.rcvRequestVoteResponse(response);
+  }
+
+  public void sendEmptyAppendEntries(){
+    messageStrategy.sendAppendEntries(currentTerm, id.toString());
+  }
+
+  public void appendEntriesResponseReceived(Response response){
+    currentState.rcvAppendEntriesResponse(response);
+  }
+
+  public Response rcvAppendEntries(AppendEntries entry){
+    if(entry.term < currentTerm){
+      return new Response(currentTerm, false);
+    }
+    return currentState.rcvAppendEntries(entry);
+  }
 }
